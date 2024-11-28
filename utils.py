@@ -17,8 +17,8 @@ from tqdm import tqdm
 
 ######################### Get data and noise adding ##########################
 def get_data_cifar(loader):
-    data = loader.sampler.data_source.train_data.copy()
-    labels = loader.sampler.data_source.train_labels
+    data = loader.sampler.data_source.data.copy()
+    labels = loader.sampler.data_source.targets
     labels = torch.Tensor(labels[:]).long() # this is to copy the list
     return (data, labels)
 
@@ -31,8 +31,8 @@ def get_data_cifar_2(loader):
 def add_noise_cifar_wo(loader, noise_percentage = 20):
     torch.manual_seed(2)
     np.random.seed(42)
-    noisy_labels = [sample_i for sample_i in loader.sampler.data_source.train_labels]
-    images = [sample_i for sample_i in loader.sampler.data_source.train_data]
+    noisy_labels = [sample_i for sample_i in loader.sampler.data_source.targets]
+    images = [sample_i for sample_i in loader.sampler.data_source.data]
     probs_to_change = torch.randint(100, (len(noisy_labels),))
     idx_to_change = probs_to_change >= (100.0 - noise_percentage)
     percentage_of_bad_labels = 100 * (torch.sum(idx_to_change).item() / float(len(noisy_labels)))
@@ -44,8 +44,8 @@ def add_noise_cifar_wo(loader, noise_percentage = 20):
             set_index = np.random.randint(len(set_labels))
             noisy_labels[n] = set_labels[set_index]
 
-    loader.sampler.data_source.train_data = images
-    loader.sampler.data_source.train_labels = noisy_labels
+    loader.sampler.data_source.data = images
+    loader.sampler.data_source.targets = noisy_labels
 
     return noisy_labels
 
@@ -65,8 +65,8 @@ def add_noise_cifar_w(loader, noise_percentage = 20):
             set_index = np.random.randint(len(set_labels))
             noisy_labels[n] = set_labels[set_index]
 
-    loader.sampler.data_source.train_data = images
-    loader.sampler.data_source.train_labels = noisy_labels
+    loader.sampler.data_source.data= images
+    loader.sampler.data_source.targets = noisy_labels
 
     return noisy_labels
 
@@ -274,6 +274,7 @@ def train_mixUp_HardBootBeta(args, model, device, train_loader, optimizer, epoch
         tab_mean_class = torch.mean(output_mean,-2)
         output = F.log_softmax(output, dim=1)
 
+        # B is the posterior probability
         B = compute_probabilities_batch(data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
         B = B.to(device)
         B[B <= 1e-4] = 1e-4
@@ -285,19 +286,20 @@ def train_mixUp_HardBootBeta(args, model, device, train_loader, optimizer, epoch
 
         z1 = torch.max(output_x1, dim=1)[1]
         z2 = torch.max(output_x2, dim=1)[1]
-
+        
+        # equation (13): (1-wp)yp log(h)
         loss_x1_vec = (1 - B) * F.nll_loss(output, targets_1, reduction='none')
         loss_x1 = torch.sum(loss_x1_vec) / len(loss_x1_vec)
 
-
+        # equation (13): wpzp log(h)
         loss_x1_pred_vec = B * F.nll_loss(output, z1, reduction='none')
         loss_x1_pred = torch.sum(loss_x1_pred_vec) / len(loss_x1_pred_vec)
 
-
+        # equation (13): (1-wq)yq log(h)
         loss_x2_vec = (1 - B2) * F.nll_loss(output, targets_2, reduction='none')
         loss_x2 = torch.sum(loss_x2_vec) / len(loss_x2_vec)
 
-
+        # equation (13): wqzq log(h)
         loss_x2_pred_vec = B2 * F.nll_loss(output, z2, reduction='none')
         loss_x2_pred = torch.sum(loss_x2_pred_vec) / len(loss_x2_pred_vec)
 
