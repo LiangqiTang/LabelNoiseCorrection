@@ -27,6 +27,11 @@ def get_data_cifar_2(loader):
     labels = torch.Tensor(labels[:]).long() # this is to copy the list
     return labels
 
+def get_data_imageNet2(loader):
+    labels = loader.dataset.targets
+    labels = torch.Tensor(labels[:]).long() # this is to copy the list
+    return labels
+
 #Noise without the sample class
 def add_noise_cifar_wo(loader, noise_percentage = 20):
     torch.manual_seed(2)
@@ -67,6 +72,24 @@ def add_noise_cifar_w(loader, noise_percentage = 20):
 
     loader.sampler.data_source.data= images
     loader.sampler.data_source.targets = noisy_labels
+
+    return noisy_labels
+
+def add_noise_imageNet_w(loader, noise_percentage = 20):
+    torch.manual_seed(2)
+    np.random.seed(42)
+    noisy_labels = [sample_i for sample_i in loader.dataset.targets]
+    probs_to_change = torch.randint(100, (len(noisy_labels),))
+    idx_to_change = probs_to_change >= (100.0 - noise_percentage)
+    percentage_of_bad_labels = 100 * (torch.sum(idx_to_change).item() / float(len(noisy_labels)))
+
+    for n, label_i in enumerate(noisy_labels):
+        if idx_to_change[n] == 1:
+            set_labels = list(set(range(1000)))  # this is a set with the available labels (with the current label)
+            set_index = np.random.randint(len(set_labels))
+            noisy_labels[n] = set_labels[set_index]
+
+    loader.dataset.targets = noisy_labels
 
     return noisy_labels
 

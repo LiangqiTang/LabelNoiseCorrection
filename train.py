@@ -32,7 +32,7 @@ def main():
                         help='number of epochs to train, default: 10')
     parser.add_argument('--lr', type=float, default=0.1,
                         help='initial learning rate, default: 0.1')
-    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'CIFAR100'], help='dataset to train on, default: CIFAR10')
+    parser.add_argument('--dataset', type=str, default='CIFAR10', choices=['CIFAR10', 'CIFAR100', 'TinyImageNet'], help='dataset to train on, default: CIFAR10')
     parser.add_argument('--momentum', type=float, default=0.9,
                         help='SGD momentum, default: 0.9')
     parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -74,20 +74,36 @@ def main():
         random.seed(args.seed)  # python seed for image transformation
 
     # CIFAR meta
-    mean = [0.4914, 0.4822, 0.4465]
-    std = [0.2023, 0.1994, 0.2010]
+    if 'CIFAR' in args.dataset:
+        mean = [0.4914, 0.4822, 0.4465]
+        std = [0.2023, 0.1994, 0.2010]
 
-    transform_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ])
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ])
 
-    transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ])
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ])
+
+    else:
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+        transform_test = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
 
 
     if args.dataset == 'CIFAR10':
@@ -95,16 +111,19 @@ def main():
         trainset_track = datasets.CIFAR10(root=args.root_dir, train=True, transform=transform_train)
         testset = datasets.CIFAR10(root=args.root_dir, train=False, transform=transform_test)
         num_classes = 10
+        model = PreResNet.ResNet18(num_classes=num_classes).to(device)
     elif args.dataset == 'CIFAR100':
         trainset = datasets.CIFAR100(root=args.root_dir, train=True, download=True, transform=transform_train)
         trainset_track = datasets.CIFAR100(root=args.root_dir, train=True, transform=transform_train)
         testset = datasets.CIFAR100(root=args.root_dir, train=False, transform=transform_test)
         num_classes = 100
+        model = PreResNet.ResNet18(num_classes=num_classes).to(device)
     elif args.dataset == 'TinyImageNet':
         trainset = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'train'), transform=transform_train)
         trainset_track = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'train'), transform=transform_train)
         testset = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'val'), transform=transform_test)
         num_classes = 200
+        model = PreResNet.ResNet50(num_classes=num_classes).to(device)
     else:
         raise NotImplementedError
         
@@ -112,16 +131,19 @@ def main():
     train_loader_track = torch.utils.data.DataLoader(trainset_track, batch_size=args.batch_size, shuffle=False, num_workers=1, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=args.test_batch_size, shuffle=False, num_workers=1, pin_memory=True)
 
-    model = PreResNet.ResNet18(num_classes=num_classes).to(device)
-
     milestones = args.M
 
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.1)
 
-    labels = get_data_cifar_2(train_loader_track)  # it should be "clonning"
-    noisy_labels = add_noise_cifar_w(train_loader, args.noise_level)  # it changes the labels in the train loader directly
-    noisy_labels_track = add_noise_cifar_w(train_loader_track, args.noise_level)
+    if 'CIFAR' in args.dataset:
+        labels = get_data_cifar_2(train_loader_track)  # it should be "clonning"
+        noisy_labels = add_noise_cifar_w(train_loader, args.noise_level)  # it changes the labels in the train loader directly
+        noisy_labels_track = add_noise_cifar_w(train_loader_track, args.noise_level)
+    else:
+        labels = get_data_imageNet2(train_loader_track)
+        noisy_labels = add_noise_imageNet_w(train_loader, args.noise_level)
+        noisy_labels_track = add_noise_imageNet_w(train_loader_track, args.noise_level)
 
     # path where experiments are saved
     exp_path = os.path.join('./', 'noise_models_PreResNet18_{0}'.format(args.experiment_name), str(args.noise_level))
