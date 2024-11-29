@@ -76,7 +76,7 @@ def add_noise_cifar_w(loader, noise_percentage = 20):
 ##################### Loss tracking and noise modeling #######################
 
 
-def track_training_loss(args, model, device, train_loader, epoch, bmm_model1, bmm_model_maxLoss1, bmm_model_minLoss1):
+def track_training_loss_bmm(args, model, device, train_loader, epoch, bmm_model1, bmm_model_maxLoss1, bmm_model_minLoss1):
     model.eval()
 
     all_losses = torch.Tensor()
@@ -125,6 +125,52 @@ def track_training_loss(args, model, device, train_loader, epoch, bmm_model1, bm
            all_probs.data.numpy(), \
            all_argmaxXentropy.numpy(), \
            bmm_model, bmm_model_maxLoss, bmm_model_minLoss
+
+
+def track_training_loss_gmm(args, model, device, train_loader, epoch, gmm_model1, gmm_model_maxLoss1, gmm_model_minLoss1):
+    model.eval()
+
+    all_losses = torch.Tensor()
+    all_predictions = torch.Tensor()
+    all_probs = torch.Tensor()
+    all_argmaxXentropy = torch.Tensor()
+
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        prediction = model(data)
+
+        prediction = F.log_softmax(prediction, dim=1)
+        idx_loss = F.nll_loss(prediction, target, reduction = 'none')
+        idx_loss.detach_()
+        all_losses = torch.cat((all_losses, idx_loss.cpu()))
+        probs = prediction.clone()
+        probs.detach_()
+        all_probs = torch.cat((all_probs, probs.cpu()))
+        arg_entr = torch.max(prediction, dim=1)[1]
+        arg_entr = F.nll_loss(prediction.float(), arg_entr.to(device), reduction='none')
+        arg_entr.detach_()
+        all_argmaxXentropy = torch.cat((all_argmaxXentropy, arg_entr.cpu()))
+
+    loss_tr = all_losses.data.numpy()
+
+    # outliers detection
+    max_perc = np.percentile(loss_tr, 95)
+    min_perc = np.percentile(loss_tr, 5)
+    loss_tr = loss_tr[(loss_tr<=max_perc) & (loss_tr>=min_perc)]
+
+    gmm_model_maxLoss = torch.FloatTensor([max_perc]).to(device)
+    gmm_model_minLoss = torch.FloatTensor([min_perc]).to(device) + 10e-6
+
+
+    loss_tr = (loss_tr - gmm_model_minLoss.data.cpu().numpy()) / (gmm_model_maxLoss.data.cpu().numpy() - gmm_model_minLoss.data.cpu().numpy() + 1e-6)
+
+    loss_tr[loss_tr>=1] = 1-10e-4
+    loss_tr[loss_tr <= 0] = 10e-4
+
+    gmm_model = GMM(n_components=2, max_iter=10)
+    gmm_model.fit(loss_tr.reshape(-1, 1))
+
+    return gmm_model, gmm_model_maxLoss, gmm_model_minLoss
 ##############################################################################
 
 ########################### Cross-entropy loss ###############################
@@ -275,7 +321,7 @@ def train_mixUp_HardBootBeta(args, model, device, train_loader, optimizer, epoch
         output = F.log_softmax(output, dim=1)
 
         # B is the posterior probability
-        B = compute_probabilities_batch(data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
+        B = compute_probabilities_batch(args, data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
         B = B.to(device)
         B[B <= 1e-4] = 1e-4
         B[B >= 1 - 1e-4] = 1 - 1e-4
@@ -366,7 +412,7 @@ def train_mixUp_SoftBootBeta(args, model, device, train_loader, optimizer, epoch
         if epoch == 1:
             B = 0.5*torch.ones(len(target)).float().to(device)
         else:
-            B = compute_probabilities_batch(data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
+            B = compute_probabilities_batch(args, data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
             B = B.to(device)
             B[B <= 1e-4] = 1e-4
             B[B >= 1-1e-4] = 1-1e-4
@@ -449,7 +495,7 @@ def train_mixUp_Beta(args, model, device, train_loader, optimizer, epoch, alpha,
         if epoch == 1:
             B = 0.5 * torch.ones(len(target)).float().to(device)
         else:
-            B = compute_probabilities_batch(data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
+            B = compute_probabilities_batch(args, data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
             B = B.to(device)
             B[B <= 1e-4] = 1e-4
             B[B >= 1 - 1e-4] = 1 - 1e-4
@@ -517,7 +563,7 @@ def train_mixUp_SoftHardBetaDouble(args, model, device, train_loader, optimizer,
         if epoch == 1:
             B = 0.5*torch.ones(len(target)).float().to(device)
         else:
-            B = compute_probabilities_batch(data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
+            B = compute_probabilities_batch(args, data, target, model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
             B = B.to(device)
             B[B <= 1e-4] = 1e-4
             B[B >= 1-1e-4] = 1-1e-4
@@ -570,7 +616,7 @@ def train_mixUp_SoftHardBetaDouble(args, model, device, train_loader, optimizer,
 ########################################################################
 
 
-def compute_probabilities_batch(data, target, cnn_model, bmm_model, bmm_model_maxLoss, bmm_model_minLoss):
+def compute_probabilities_batch(args, data, target, cnn_model, mm_model, mm_model_maxLoss, mm_model_minLoss):
     cnn_model.eval()
     outputs = cnn_model(data)
     outputs = F.log_softmax(outputs, dim=1)
@@ -578,12 +624,19 @@ def compute_probabilities_batch(data, target, cnn_model, bmm_model, bmm_model_ma
     batch_losses.detach_()
     outputs.detach_()
     cnn_model.train()
-    batch_losses = (batch_losses - bmm_model_minLoss) / (bmm_model_maxLoss - bmm_model_minLoss + 1e-6)
+    batch_losses = (batch_losses - mm_model_minLoss) / (mm_model_maxLoss - mm_model_minLoss + 1e-6)
     batch_losses[batch_losses >= 1] = 1-10e-4
     batch_losses[batch_losses <= 0] = 10e-4
 
     #B = bmm_model.posterior(batch_losses,1)
-    B = bmm_model.look_lookup(batch_losses, bmm_model_maxLoss, bmm_model_minLoss)
+    if args.MixtureModel == 'BMM':
+        B = mm_model.look_lookup(batch_losses, mm_model_maxLoss, mm_model_minLoss)
+    elif args.MixtureModel == 'GMM':
+        B = mm_model.predict_proba(batch_losses.reshape(-1, 1))
+        # from the distribution, we get the component with larger mean as the nois
+        B = B[:, np.argmax(mm_model.means_.flatten())]
+    else:
+        raise NotImplementedError
 
     return torch.FloatTensor(B)
 

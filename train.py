@@ -56,6 +56,7 @@ def main():
                         'None' (deactivated)(default), 'Hard' (Hard bootstrapping), 'Soft' (Soft bootstrapping), default: Hard")
     parser.add_argument('--reg-term', type=float, default=0., 
                         help="Parameter of the regularization term, default: 0.")
+    parser.add_argument('--MixtureModel', type=str, default='BMM', choices=['BMM', 'GMM'])
 
 
     args = parser.parse_args()
@@ -99,12 +100,18 @@ def main():
         trainset_track = datasets.CIFAR100(root=args.root_dir, train=True, transform=transform_train)
         testset = datasets.CIFAR100(root=args.root_dir, train=False, transform=transform_test)
         num_classes = 100
+    elif args.dataset == 'TinyImageNet':
+        trainset = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'train'), transform=transform_train)
+        trainset_track = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'train'), transform=transform_train)
+        testset = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'val'), transform=transform_test)
+        num_classes = 200
     else:
         raise NotImplementedError
         
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=1, pin_memory=True)
     train_loader_track = torch.utils.data.DataLoader(trainset_track, batch_size=args.batch_size, shuffle=False, num_workers=1, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=args.test_batch_size, shuffle=False, num_workers=1, pin_memory=True)
+
     model = PreResNet.ResNet18(num_classes=num_classes).to(device)
 
     milestones = args.M
@@ -122,7 +129,7 @@ def main():
     if not os.path.isdir(exp_path):
          os.makedirs(exp_path)
 
-    bmm_model=bmm_model_maxLoss=bmm_model_minLoss=cont=k = 0
+    mm_model=mm_model_maxLoss=mm_model_minLoss=cont=k = 0
 
     bootstrap_ep_std = milestones[0] + 5 + 1 # the +1 is because the conditions are defined as ">" or "<" not ">="
     guidedMixup_ep = 106
@@ -130,7 +137,8 @@ def main():
     if args.Mixup == 'Dynamic':
         bootstrap_ep_mixup = guidedMixup_ep + 5
     else:
-        bootstrap_ep_mixup = milestones[0] + 5 + 1
+        #bootstrap_ep_mixup = milestones[0] + 5 + 1
+        bootstrap_ep_mixup = 2
 
     countTemp = 1
 
@@ -162,11 +170,11 @@ def main():
                     if args.BootBeta == "Hard":
                         print("\t##### Doing HARD BETA bootstrapping and NORMAL mixup from the epoch {0} #####".format(bootstrap_ep_mixup))
                         loss_per_epoch, acc_train_per_epoch_i = train_mixUp_HardBootBeta(args, model, device, train_loader, optimizer, epoch,\
-                                                                                        alpha, bmm_model, bmm_model_maxLoss, bmm_model_minLoss, args.reg_term, num_classes)
+                                                                                        alpha, mm_model, mm_model_maxLoss, mm_model_minLoss, args.reg_term, num_classes)
                     elif args.BootBeta == "Soft":
                         print("\t##### Doing SOFT BETA bootstrapping and NORMAL mixup from the epoch {0} #####".format(bootstrap_ep_mixup))
                         loss_per_epoch, acc_train_per_epoch_i = train_mixUp_SoftBootBeta(args, model, device, train_loader, optimizer, epoch, \
-                                                                                        alpha, bmm_model, bmm_model_maxLoss, bmm_model_minLoss, args.reg_term, num_classes)
+                                                                                        alpha, mm_model, mm_model_maxLoss, mm_model_minLoss, args.reg_term, num_classes)
 
         ## Dynamic Mixup ##
         if args.Mixup == "Dynamic":
@@ -177,16 +185,19 @@ def main():
 
             elif epoch < bootstrap_ep_mixup:
                 print('\t##### Doing Dynamic mixup from epoch {0} #####'.format(guidedMixup_ep))
-                loss_per_epoch, acc_train_per_epoch_i = train_mixUp_Beta(args, model, device, train_loader, optimizer, epoch, alpha, bmm_model,\
-                                                                        bmm_model_maxLoss, bmm_model_minLoss)
+                loss_per_epoch, acc_train_per_epoch_i = train_mixUp_Beta(args, model, device, train_loader, optimizer, epoch, alpha, mm_model,\
+                                                                        mm_model_maxLoss, mm_model_minLoss)
             else:
                 print("\t##### Going from SOFT BETA bootstrapping to HARD BETA with linear temperature and Dynamic mixup from the epoch {0} #####".format(bootstrap_ep_mixup))
                 loss_per_epoch, acc_train_per_epoch_i, countTemp, k = train_mixUp_SoftHardBetaDouble(args, model, device, train_loader, optimizer, \
-                                                                                                                epoch, bmm_model, bmm_model_maxLoss, bmm_model_minLoss, \
+                                                                                                                epoch, mm_model, mm_model_maxLoss, mm_model_minLoss, \
                                                                                                                 countTemp, k, temp_length, args.reg_term, num_classes)
         ### Training tracking loss
-        epoch_losses_train, epoch_probs_train, argmaxXentropy_train, bmm_model, bmm_model_maxLoss, bmm_model_minLoss = \
-            track_training_loss(args, model, device, train_loader_track, epoch, bmm_model, bmm_model_maxLoss, bmm_model_minLoss)
+        if args.MixtureModel == 'BMM':
+            epoch_losses_train, epoch_probs_train, argmaxXentropy_train, mm_model, mm_model_maxLoss, mm_model_minLoss = \
+                track_training_loss_bmm(args, model, device, train_loader_track, epoch, mm_model, mm_model_maxLoss, mm_model_minLoss)
+        elif args.MixtureModel == 'GMM':
+            mm_model, mm_model_maxLoss, mm_model_minLoss = track_training_loss_gmm(args, model, device, train_loader, epoch, mm_model, mm_model_maxLoss, mm_model_minLoss)
 
         # test
         loss_per_epoch, acc_val_per_epoch_i = test_cleaning(args, model, device, test_loader)
