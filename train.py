@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
+import torchvision.models as models
 import torch.nn.functional as F
 import PreResNet
 import math
@@ -123,7 +124,8 @@ def main():
         trainset_track = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'train'), transform=transform_train)
         testset = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'val'), transform=transform_test)
         num_classes = 200
-        model = PreResNet.ResNet50(num_classes=num_classes).to(device)
+        model = models.resnet18(num_classes=num_classes).to(device)
+        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
     else:
         raise NotImplementedError
         
