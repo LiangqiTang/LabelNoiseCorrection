@@ -655,7 +655,7 @@ def compute_probabilities_batch(args, data, target, cnn_model, mm_model, mm_mode
     if args.MixtureModel == 'BMM':
         B = mm_model.look_lookup(batch_losses, mm_model_maxLoss, mm_model_minLoss)
     elif args.MixtureModel == 'GMM':
-        B = mm_model.predict_proba(batch_losses.reshape(-1, 1))
+        B = mm_model.predict_proba(batch_losses.reshape(-1, 1).cpu())
         # from the distribution, we get the component with larger mean as the nois
         B = B[:, np.argmax(mm_model.means_.flatten())]
     else:

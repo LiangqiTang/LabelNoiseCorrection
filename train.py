@@ -159,8 +159,7 @@ def main():
     if args.Mixup == 'Dynamic':
         bootstrap_ep_mixup = guidedMixup_ep + 5
     else:
-        #bootstrap_ep_mixup = milestones[0] + 5 + 1
-        bootstrap_ep_mixup = 2
+        bootstrap_ep_mixup = milestones[0] + 5 + 1
 
     countTemp = 1
 
