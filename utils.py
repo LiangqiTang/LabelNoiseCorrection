@@ -496,6 +496,9 @@ def mixup_data_beta(x, y, B, device='cuda'):
 
     lam = ((1 - B) + (1 - B[index]))
     mixed_x = ((1-B)/lam).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x + ((1-B[index])/lam).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x[index, :]
+    # Here we use a new dynamic mixup method by random sampling from a beta distribution 
+    # delta = np.random.beta(32*(1-B)/lam, 32*(1-B[index])/lam)
+    # mixed_x = delta.unsqueeze(1).unsqueeze(2).unsqueeze(3) * x + (1-delta).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x[index, :]
     y_a, y_b = y, y[index]
     return mixed_x, y_a, y_b, index
 
