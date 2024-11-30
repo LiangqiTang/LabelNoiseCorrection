@@ -58,6 +58,7 @@ def main():
     parser.add_argument('--reg-term', type=float, default=0., 
                         help="Parameter of the regularization term, default: 0.")
     parser.add_argument('--MixtureModel', type=str, default='BMM', choices=['BMM', 'GMM'])
+    parser.add_argument('--best-model', type=str, default=None, help='path to the best model to be loaded, default: best')
 
 
     args = parser.parse_args()
@@ -125,8 +126,13 @@ def main():
         testset = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'val'), transform=transform_test)
         num_classes = 200
         # here we use the pretrained weights from the torchvision models
-        model = models.resnet18(num_classes=num_classes, weights=models.ResNet18_Weights.DEFAULT).to(device)
-        model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
+        if args.best_model:
+            model = models.resnet18(num_classes=num_classes).to(device)
+            model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
+            model.load_state_dict(torch.load(args.best_model))
+        else:
+            model = models.resnet18(num_classes=num_classes, weights=models.ResNet18_Weights.DEFAULT).to(device)
+            model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
     else:
         raise NotImplementedError
         
