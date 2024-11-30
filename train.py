@@ -125,7 +125,7 @@ def main():
         testset = datasets.ImageFolder(root=os.path.join(args.root_dir, 'tiny-imagenet-200', 'val'), transform=transform_test)
         num_classes = 200
         model = models.resnet18(num_classes=num_classes).to(device)
-        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
+        model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
     else:
         raise NotImplementedError
         
