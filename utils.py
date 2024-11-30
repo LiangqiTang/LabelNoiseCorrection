@@ -143,6 +143,7 @@ def track_training_loss_bmm(args, model, device, train_loader, epoch, bmm_model1
     bmm_model.fit(loss_tr)
 
     bmm_model.create_lookup(1)
+    # bmm_model.create_lookup(1 if bmm_model.alphas[1]/(bmm_model.alphas[1] + bmm_model.betas[1]) > bmm_model.alphas[0]/(bmm_model.alphas[0] + bmm_model.betas[0]) else 0)
 
     return all_losses.data.numpy(), \
            all_probs.data.numpy(), \
