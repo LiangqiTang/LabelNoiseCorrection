@@ -131,7 +131,7 @@ def main():
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
             model.load_state_dict(torch.load(args.best_model))
         else:
-            model = models.resnet18(num_classes=num_classes, weights=models.ResNet18_Weights.DEFAULT).to(device)
+            model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT).to(device)
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
     else:
         raise NotImplementedError
