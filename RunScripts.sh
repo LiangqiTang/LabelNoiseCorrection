@@ -29,6 +29,11 @@ python train.py --Mixup 'Static' --BootBeta 'Hard' --experiment-name 'M-DYR-H-GM
 python train.py --Mixup 'Static' --BootBeta 'Soft' --experiment-name 'M-DYR-S-GMM' \
 	--epochs 300 --M 100 250 --noise-level 80 --reg-term 1.0 --dataset CIFAR10 --MixtureModel 'GMM'
 
+### Dynamic mixup with hard bootstrapping (MD-DYR-H)
+python train.py --Mixup 'Dynamic' --experiment-name 'MD-DYR-H' \
+	--epochs 300 --M 100 250 --noise-level 90 --reg-term 1.0 --dataset CIFAR10
+
+
 ### Dynamic mixup with soft to hard bootstrapping (MD-DYR-SH)
 python train.py --Mixup 'Dynamic' --experiment-name 'MD-DYR-SH' \
 	--epochs 300 --M 100 250 --noise-level 90 --reg-term 1.0 --dataset CIFAR10

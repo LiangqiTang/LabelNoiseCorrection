@@ -495,12 +495,12 @@ def mixup_data_beta(x, y, B, device='cuda'):
         index = torch.randperm(batch_size)
 
     lam = ((1 - B) + (1 - B[index]))
-    mixed_x = ((1-B)/lam).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x + ((1-B[index])/lam).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x[index, :]
+    # mixed_x = ((1-B)/lam).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x + ((1-B[index])/lam).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x[index, :]
     # Here we use a new dynamic mixup method by random sampling from a beta distribution 
-    # p1 = torch.exp((1-B)/lam)
-    # p2 = torch.exp((1-B[index])/lam)
-    # delta = torch.distributions.beta.Beta(p1, p2).sample()
-    # mixed_x = delta.unsqueeze(1).unsqueeze(2).unsqueeze(3) * x + (1-delta).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x[index, :]
+    p1 = torch.exp((1-B)/lam)
+    p2 = torch.exp((1-B[index])/lam)
+    delta = torch.distributions.beta.Beta(p1, p2).sample()
+    mixed_x = delta.unsqueeze(1).unsqueeze(2).unsqueeze(3) * x + (1-delta).unsqueeze(1).unsqueeze(2).unsqueeze(3) * x[index, :]
     y_a, y_b = y, y[index]
     return mixed_x, y_a, y_b, index
 
