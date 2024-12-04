@@ -213,16 +213,16 @@ def main():
                 print('\t##### Doing NORMAL mixup for {0} epochs #####'.format(guidedMixup_ep - 1))
                 loss_per_epoch, acc_train_per_epoch_i = train_mixUp(args, model, device, train_loader, optimizer, epoch, 32)
 
-            # elif epoch < bootstrap_ep_mixup:
-            else:
+            elif epoch < bootstrap_ep_mixup:
+            # else:
                 print('\t##### Doing Dynamic mixup from epoch {0} #####'.format(guidedMixup_ep))
                 loss_per_epoch, acc_train_per_epoch_i = train_mixUp_Beta(args, model, device, train_loader, optimizer, epoch, alpha, mm_model,\
                                                                         mm_model_maxLoss, mm_model_minLoss)
-            # else:
-            #     print("\t##### Going from SOFT BETA bootstrapping to HARD BETA with linear temperature and Dynamic mixup from the epoch {0} #####".format(bootstrap_ep_mixup))
-            #     loss_per_epoch, acc_train_per_epoch_i, countTemp, k = train_mixUp_SoftHardBetaDouble(args, model, device, train_loader, optimizer, \
-            #                                                                                                     epoch, mm_model, mm_model_maxLoss, mm_model_minLoss, \
-            #                                                                                                     countTemp, k, temp_length, args.reg_term, num_classes)
+            else:
+                print("\t##### Going from SOFT BETA bootstrapping to HARD BETA with linear temperature and Dynamic mixup from the epoch {0} #####".format(bootstrap_ep_mixup))
+                loss_per_epoch, acc_train_per_epoch_i, countTemp, k = train_mixUp_SoftHardBetaDouble(args, model, device, train_loader, optimizer, \
+                                                                                                                epoch, mm_model, mm_model_maxLoss, mm_model_minLoss, \
+                                                                                                                countTemp, k, temp_length, args.reg_term, num_classes)
         ### Training tracking loss
         if args.MixtureModel == 'BMM':
             epoch_losses_train, epoch_probs_train, argmaxXentropy_train, mm_model, mm_model_maxLoss, mm_model_minLoss = \
