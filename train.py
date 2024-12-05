@@ -127,11 +127,17 @@ def main():
         num_classes = 200
         # here we use the pretrained weights from the torchvision models
         if args.best_model:
-            model = models.resnet18(num_classes=num_classes).to(device)
+            model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT).to(device)
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
             model.load_state_dict(torch.load(args.best_model))
+            for param in model.parameters():
+                param.requires_grad = False
+            for param in model.fc.parameters():
+                param.requires_grad = True
         else:
             model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT).to(device)
+            for param in model.parameters():
+                param.requires_grad = False
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
     else:
         raise NotImplementedError
