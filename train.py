@@ -147,8 +147,10 @@ def main():
     test_loader = torch.utils.data.DataLoader(testset, batch_size=args.test_batch_size, shuffle=False, num_workers=1, pin_memory=True)
 
     milestones = args.M
-
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
+    
+    # here we use Adam optimizer to accelerate the training of ImageNet
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.1)
 
     if 'CIFAR' in args.dataset:
