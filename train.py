@@ -15,6 +15,8 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 import sys
+import shutil
+import os
 sys.path.append('../')
 from utils import *
 
@@ -127,7 +129,7 @@ def main():
         num_classes = 200
         # here we use the pretrained weights from the torchvision models
         if args.best_model:
-            model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT).to(device)
+            model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT).to(device)
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
             model.load_state_dict(torch.load(args.best_model))
             for param in model.parameters():
@@ -135,7 +137,7 @@ def main():
             for param in model.fc.parameters():
                 param.requires_grad = True
         else:
-            model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT).to(device)
+            model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT).to(device)
             for param in model.parameters():
                 param.requires_grad = False
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes).to(device)
