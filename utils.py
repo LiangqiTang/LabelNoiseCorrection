@@ -85,7 +85,7 @@ def add_noise_imageNet_w(loader, noise_percentage = 20):
 
     for n, label_i in enumerate(noisy_labels):
         if idx_to_change[n] == 1:
-            set_labels = list(set(range(1000)))  # this is a set with the available labels (with the current label)
+            set_labels = list(set(range(200)))  # this is a set with the available labels (with the current label)
             set_index = np.random.randint(len(set_labels))
             noisy_labels[n] = set_labels[set_index]
 
