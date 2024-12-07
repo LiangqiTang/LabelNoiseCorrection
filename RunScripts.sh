@@ -42,5 +42,5 @@ python train.py --Mixup 'Dynamic' --experiment-name 'MD-DYR-SH' \
 python train.py --Mixup 'Static' --BootBeta 'None' --experiment-name 'M-imagenet' --epochs 100 --M 30 80 --noise-level 0 --dataset TinyImageNet --batch-size 256 --lr 0.001
 
 ### Static mixup with hard bootstrapping for tinyimagenet(M-DYR-H-BMM-imagenet)
-python train.py --Mixup 'Static' --BootBeta 'Hard' --experiment-name 'M-DYR-H-BMM' --epochs 100 --M 30 80 --noise-level 0 --reg-term 1.0 --dataset TinyImageNet --batch-size 256 --lr 0.001
+python train.py --Mixup 'Static' --BootBeta 'Hard' --experiment-name 'M-DYR-H-BMM-imagenet' --epochs 100 --M 30 80 --noise-level 0 --reg-term 1.0 --dataset TinyImageNet --batch-size 256 --lr 0.001
 
