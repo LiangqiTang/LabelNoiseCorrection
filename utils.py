@@ -78,7 +78,8 @@ def add_noise_cifar_w(loader, noise_percentage = 20):
 def add_noise_imageNet_w(loader, noise_percentage = 20):
     torch.manual_seed(2)
     np.random.seed(42)
-    noisy_labels = [sample_i for sample_i in loader.dataset.targets]
+    noisy_labels = [sample_i for sample_i in loader.sampler.data_source.targets]
+    images = [sample_i[0] for sample_i in loader.sampler.data_source.imgs]
     probs_to_change = torch.randint(100, (len(noisy_labels),))
     idx_to_change = probs_to_change >= (100.0 - noise_percentage)
     percentage_of_bad_labels = 100 * (torch.sum(idx_to_change).item() / float(len(noisy_labels)))
@@ -89,7 +90,8 @@ def add_noise_imageNet_w(loader, noise_percentage = 20):
             set_index = np.random.randint(len(set_labels))
             noisy_labels[n] = set_labels[set_index]
 
-    loader.dataset.targets = noisy_labels
+    loader.sampler.data_source.samples= list(zip(images, noisy_labels))
+    loader.sampler.data_source.targets = noisy_labels
 
     return noisy_labels
 
